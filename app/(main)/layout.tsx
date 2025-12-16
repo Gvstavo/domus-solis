@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
-import "./globals.css";
-import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
-
-
+import Menu from '@/src/menu.tsx';
+import Footer from '@/src/footer.tsx';
 
 export const metadata: Metadata = {
   title: "Domus Solis",
@@ -15,12 +13,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body>
-         <AppRouterCacheProvider>
-            {children}
-         </AppRouterCacheProvider>
-      </body>
-    </html>
+      <>
+      <Menu /> 
+      {children}
+      <Footer/>
+      </>
   );
 }
