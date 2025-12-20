@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS categorias(
+  id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+  nome TEXT,
+  descricao TEXT,
+  slug TEXT
+);
