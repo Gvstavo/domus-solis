@@ -1,0 +1,1 @@
+ALTER TABLE categorias ADD COLUMN created_at TIMESTAMP;
