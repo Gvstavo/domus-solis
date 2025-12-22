@@ -1,0 +1,178 @@
+'use client';
+import { useEffect, useState } from 'react';
+import { useActionState } from 'react';
+import {
+  Dialog, DialogActions, DialogContent, DialogTitle, Button, TextField,
+  CircularProgress, Box, Chip, Autocomplete, Typography
+} from '@mui/material';
+import { useFormStatus } from 'react-dom';
+import { type Artigo, type Categoria } from '@/src/models.tsx';
+import { type FormState, createArtigo, updateArtigo } from '@/actions/artigo';
+
+interface ArtigoFormModalProps {
+  open: boolean;
+  onClose: () => void;
+  onSuccess: (message: string) => void;
+  editingArtigo: Artigo | null;
+  categorias: Categoria[];
+  currentUserId: number;
+}
+
+// Configuração das cores da Domus
+const DOMUS_GOLD = '#ebd127';
+const DOMUS_GOLD_HOVER = '#d4bd23';
+const TEXT_ON_GOLD = '#1f2937'; 
+
+function SubmitButton({ isEditMode }: { isEditMode: boolean }) {
+  // useFormStatus deve ser usado em um componente renderizado DENTRO do <form>
+  const { pending } = useFormStatus();
+  
+  return (
+    <Button
+      type="submit"
+      variant="contained"
+      disabled={pending}
+      sx={{
+        bgcolor: DOMUS_GOLD,
+        color: TEXT_ON_GOLD,
+        fontWeight: 'bold',
+        '&:hover': {
+          bgcolor: DOMUS_GOLD_HOVER,
+        },
+        // Estilo visual para disabled (opcional, pois o disabled={pending} já cuida da funcionalidade)
+        '&.Mui-disabled': {
+           bgcolor: '#e0e0e0',
+           color: '#a0a0a0'
+        }
+      }}
+    >
+      {pending ? <CircularProgress size={24} color="inherit" /> : (isEditMode ? 'Salvar Alterações' : 'Criar Artigo')}
+    </Button>
+  );
+}
+
+export function ArtigoFormModal({ open, onClose, onSuccess, editingArtigo, categorias, currentUserId }: ArtigoFormModalProps) {
+  const isEditMode = Boolean(editingArtigo);
+  const initialState: FormState = { message: '', success: false };
+  const action = isEditMode ? updateArtigo : createArtigo;
+  const [state, formAction] = useActionState(action, initialState);
+  
+  const [selectedCategorias, setSelectedCategorias] = useState<Categoria[]>(() => 
+    isEditMode && editingArtigo?.categorias ? categorias.filter(c => editingArtigo.categorias.includes(c.id)) : []
+  );
+
+  useEffect(() => {
+    if (state.success) {
+      onSuccess(state.message);
+      onClose();
+    }
+  }, [state, onSuccess, onClose]);
+
+  useEffect(() => {
+    if (!open) {
+      // Reseta os campos ao fechar e limpar estados
+      setSelectedCategorias(isEditMode && editingArtigo?.categorias ? categorias.filter(c => editingArtigo.categorias.includes(c.id)) : []);
+    }
+  }, [open, isEditMode, editingArtigo, categorias]);
+
+  return (
+    // PaperProps com component: 'form' transforma o container principal do Modal em um Form
+    <Dialog 
+      open={open} 
+      onClose={onClose} 
+      PaperProps={{ 
+        component: 'form', 
+        action: formAction 
+      }} 
+      maxWidth="md" 
+      fullWidth
+    >
+      <DialogTitle>{isEditMode ? 'Editar Artigo' : 'Criar Novo Artigo'}</DialogTitle>
+      <DialogContent>
+        {isEditMode && <input type="hidden" name="id" value={editingArtigo.id} />}
+        {/* Garantir que currentUserId tenha valor, senão enviar string vazia para o Zod validar */}
+        <input type="hidden" name="created_by" value={currentUserId || ''} />
+        
+        <TextField
+          autoFocus
+          // REMOVIDO 'required' para evitar bloqueio silencioso do HTML5
+          margin="dense"
+          name="titulo"
+          label="Título do Artigo"
+          type="text"
+          fullWidth
+          defaultValue={isEditMode ? editingArtigo.titulo : ''}
+          error={!!state.errors?.titulo}
+          helperText={state.errors?.titulo?.[0]}
+        />
+
+        {/* Categorias */}
+        <Autocomplete
+          multiple
+          options={categorias}
+          getOptionLabel={(option) => option.nome}
+          value={selectedCategorias}
+          onChange={(event, newValue) => {
+            setSelectedCategorias(newValue);
+          }}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              margin="dense"
+              label="Categorias"
+              placeholder="Selecione categorias"
+              error={!!state.errors?.categorias}
+              helperText={state.errors?.categorias?.[0]}
+            />
+          )}
+          renderTags={(value, getTagProps) =>
+            value.map((option, index) => {
+              const { key, ...chipProps } = getTagProps({ index });
+              return (
+                <Chip
+                  key={key}
+                  variant="outlined"
+                  label={option.nome}
+                  {...chipProps}
+                />
+              );
+            })
+          }
+        />
+        {/* Input Hidden para enviar IDs das categorias */}
+        <input 
+          type="hidden" 
+          name="categorias" 
+          value={selectedCategorias.map(c => c.id).join(',')} 
+        />
+
+        {/* Conteúdo */}
+        <TextField
+          // REMOVIDO 'required'
+          margin="dense"
+          name="conteudo"
+          label="Conteúdo"
+          type="text"
+          fullWidth
+          multiline
+          minRows={6}
+          defaultValue={isEditMode ? editingArtigo.conteudo : ''}
+          error={!!state.errors?.conteudo}
+          helperText={state.errors?.conteudo?.[0]}
+        />
+
+        {/* Exibir mensagem de erro genérica se houver */}
+        {!state.success && state.message && (
+           <Typography color="error" variant="body2" sx={{ mt: 2 }}>
+             {state.message}
+           </Typography>
+        )}
+
+      </DialogContent>
+      <DialogActions>
+        <Button sx={{ color: '#666' }} onClick={onClose}>Cancelar</Button>
+        <SubmitButton isEditMode={isEditMode} />
+      </DialogActions>
+    </Dialog>
+  );
+}
