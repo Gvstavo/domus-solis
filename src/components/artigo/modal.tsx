@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useActionState } from 'react';
 import {
   Dialog, DialogActions, DialogContent, DialogTitle, Button, TextField,
@@ -8,6 +8,9 @@ import {
 import { useFormStatus } from 'react-dom';
 import { type Artigo, type Categoria } from '@/src/models.tsx';
 import { type FormState, createArtigo, updateArtigo } from '@/actions/artigo';
+
+// Importa o CSS do Quill
+import 'quill/dist/quill.snow.css'; 
 
 interface ArtigoFormModalProps {
   open: boolean;
@@ -18,13 +21,11 @@ interface ArtigoFormModalProps {
   currentUserId: number;
 }
 
-// Configuração das cores da Domus
 const DOMUS_GOLD = '#ebd127';
 const DOMUS_GOLD_HOVER = '#d4bd23';
 const TEXT_ON_GOLD = '#1f2937'; 
 
 function SubmitButton({ isEditMode }: { isEditMode: boolean }) {
-  // useFormStatus deve ser usado em um componente renderizado DENTRO do <form>
   const { pending } = useFormStatus();
   
   return (
@@ -36,14 +37,8 @@ function SubmitButton({ isEditMode }: { isEditMode: boolean }) {
         bgcolor: DOMUS_GOLD,
         color: TEXT_ON_GOLD,
         fontWeight: 'bold',
-        '&:hover': {
-          bgcolor: DOMUS_GOLD_HOVER,
-        },
-        // Estilo visual para disabled (opcional, pois o disabled={pending} já cuida da funcionalidade)
-        '&.Mui-disabled': {
-           bgcolor: '#e0e0e0',
-           color: '#a0a0a0'
-        }
+        '&:hover': { bgcolor: DOMUS_GOLD_HOVER },
+        '&.Mui-disabled': { bgcolor: '#e0e0e0', color: '#a0a0a0' }
       }}
     >
       {pending ? <CircularProgress size={24} color="inherit" /> : (isEditMode ? 'Salvar Alterações' : 'Criar Artigo')}
@@ -61,6 +56,11 @@ export function ArtigoFormModal({ open, onClose, onSuccess, editingArtigo, categ
     isEditMode && editingArtigo?.categorias ? categorias.filter(c => editingArtigo.categorias.includes(c.id)) : []
   );
 
+  // Refs para o Quill
+  const editorRef = useRef<HTMLDivElement>(null); 
+  const quillInstance = useRef<any>(null); 
+  const [content, setContent] = useState<string>(''); 
+
   useEffect(() => {
     if (state.success) {
       onSuccess(state.message);
@@ -68,34 +68,84 @@ export function ArtigoFormModal({ open, onClose, onSuccess, editingArtigo, categ
     }
   }, [state, onSuccess, onClose]);
 
+  // Efeito para inicializar o Quill
   useEffect(() => {
-    if (!open) {
-      // Reseta os campos ao fechar e limpar estados
-      setSelectedCategorias(isEditMode && editingArtigo?.categorias ? categorias.filter(c => editingArtigo.categorias.includes(c.id)) : []);
+    const initQuill = async () => {
+      // Importa o Quill apenas no cliente
+      const { default: Quill } = await import('quill');
+
+      // Verifica se a div do editor existe no DOM
+      if (editorRef.current && !quillInstance.current) {
+        
+        // Limpa o conteúdo anterior da div para evitar duplicação da toolbar
+        editorRef.current.innerHTML = '';
+
+        const toolbarOptions = [
+          [{ 'header': [1, 2, 3, false] }],
+          ['bold', 'italic', 'underline', 'strike', 'blockquote'],
+          [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+          [{ 'indent': '-1'}, { 'indent': '+1' }],
+          [{ 'align': [] }],
+          ['clean']
+        ];
+
+        const quill = new Quill(editorRef.current, {
+          theme: 'snow',
+          modules: { toolbar: toolbarOptions },
+          placeholder: 'Escreva o conteúdo do artigo aqui...'
+        });
+
+        quillInstance.current = quill;
+
+        // Define o valor inicial
+        const initialValue = isEditMode && editingArtigo?.conteudo ? editingArtigo.conteudo : '';
+        
+        // Usamos root.innerHTML para garantir que o HTML seja renderizado corretamente
+        if (initialValue) {
+            quill.root.innerHTML = initialValue;
+        }
+        setContent(initialValue);
+
+        // Listener para mudanças
+        quill.on('text-change', () => {
+          const html = quill.root.innerHTML;
+          setContent(html === '<p><br></p>' ? '' : html);
+        });
+      }
+    };
+
+    if (open) {
+      // setTimeout garante que o Dialog do Material UI terminou de renderizar a div no DOM
+      const timer = setTimeout(() => {
+        initQuill();
+      }, 100);
+      
+      return () => clearTimeout(timer);
     }
-  }, [open, isEditMode, editingArtigo, categorias]);
+
+    // Cleanup ao fechar
+    return () => {
+      quillInstance.current = null;
+      setContent('');
+    };
+  }, [open, isEditMode, editingArtigo]);
 
   return (
-    // PaperProps com component: 'form' transforma o container principal do Modal em um Form
     <Dialog 
       open={open} 
       onClose={onClose} 
-      PaperProps={{ 
-        component: 'form', 
-        action: formAction 
-      }} 
-      maxWidth="md" 
+      PaperProps={{ component: 'form', action: formAction }} 
+      maxWidth="lg" 
       fullWidth
+      // keepMounted={false} // Garante que o DOM seja destruído/recriado para o Quill funcionar bem
     >
       <DialogTitle>{isEditMode ? 'Editar Artigo' : 'Criar Novo Artigo'}</DialogTitle>
       <DialogContent>
         {isEditMode && <input type="hidden" name="id" value={editingArtigo.id} />}
-        {/* Garantir que currentUserId tenha valor, senão enviar string vazia para o Zod validar */}
         <input type="hidden" name="created_by" value={currentUserId || ''} />
         
         <TextField
           autoFocus
-          // REMOVIDO 'required' para evitar bloqueio silencioso do HTML5
           margin="dense"
           name="titulo"
           label="Título do Artigo"
@@ -104,17 +154,15 @@ export function ArtigoFormModal({ open, onClose, onSuccess, editingArtigo, categ
           defaultValue={isEditMode ? editingArtigo.titulo : ''}
           error={!!state.errors?.titulo}
           helperText={state.errors?.titulo?.[0]}
+          sx={{ mb: 2 }}
         />
 
-        {/* Categorias */}
         <Autocomplete
           multiple
           options={categorias}
           getOptionLabel={(option) => option.nome}
           value={selectedCategorias}
-          onChange={(event, newValue) => {
-            setSelectedCategorias(newValue);
-          }}
+          onChange={(event, newValue) => setSelectedCategorias(newValue)}
           renderInput={(params) => (
             <TextField
               {...params}
@@ -128,40 +176,53 @@ export function ArtigoFormModal({ open, onClose, onSuccess, editingArtigo, categ
           renderTags={(value, getTagProps) =>
             value.map((option, index) => {
               const { key, ...chipProps } = getTagProps({ index });
-              return (
-                <Chip
-                  key={key}
-                  variant="outlined"
-                  label={option.nome}
-                  {...chipProps}
-                />
-              );
+              return <Chip key={key} variant="outlined" label={option.nome} {...chipProps} />;
             })
           }
         />
-        {/* Input Hidden para enviar IDs das categorias */}
-        <input 
-          type="hidden" 
-          name="categorias" 
-          value={selectedCategorias.map(c => c.id).join(',')} 
-        />
+        <input type="hidden" name="categorias" value={selectedCategorias.map(c => c.id).join(',')} />
 
-        {/* Conteúdo */}
-        <TextField
-          // REMOVIDO 'required'
-          margin="dense"
-          name="conteudo"
-          label="Conteúdo"
-          type="text"
-          fullWidth
-          multiline
-          minRows={6}
-          defaultValue={isEditMode ? editingArtigo.conteudo : ''}
-          error={!!state.errors?.conteudo}
-          helperText={state.errors?.conteudo?.[0]}
-        />
+        <Typography variant="subtitle1" sx={{ mt: 2, mb: 1, color: 'text.secondary' }}>
+            Conteúdo
+        </Typography>
+        
+        {/* Box Container para o Quill */}
+        <Box sx={{ 
+            height: '400px', 
+            mb: 4, 
+            display: 'flex', 
+            flexDirection: 'column',
+            // Estilização profunda para garantir que o Quill apareça corretamente
+            '& .ql-toolbar': { 
+                borderTopLeftRadius: '4px', 
+                borderTopRightRadius: '4px',
+                borderColor: 'rgba(0, 0, 0, 0.23)',
+                bgcolor: '#f5f5f5'
+            },
+            '& .ql-container': { 
+                flexGrow: 1, 
+                borderBottomLeftRadius: '4px', 
+                borderBottomRightRadius: '4px',
+                borderColor: 'rgba(0, 0, 0, 0.23)',
+                fontSize: '1rem',
+                fontFamily: 'inherit'
+            },
+            '& .ql-editor': {
+                minHeight: '200px'
+            }
+        }}>
+            {/* A div ref precisa estar limpa inicialmente */}
+            <div ref={editorRef} style={{ height: '100%', backgroundColor: 'white' }} />
+        </Box>
 
-        {/* Exibir mensagem de erro genérica se houver */}
+        <input type="hidden" name="conteudo" value={content} />
+
+        {state.errors?.conteudo && (
+            <Typography color="error" variant="caption" display="block" sx={{ mt: 1 }}>
+                {state.errors.conteudo[0]}
+            </Typography>
+        )}
+
         {!state.success && state.message && (
            <Typography color="error" variant="body2" sx={{ mt: 2 }}>
              {state.message}
