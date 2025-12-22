@@ -19,5 +19,6 @@ export interface Artigo{
 	created_at: Date;
 	updated_at: Date;
 	titulo: string;
+	subtitulo: string;
 	slug: string;
 }

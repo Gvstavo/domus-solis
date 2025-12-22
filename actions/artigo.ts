@@ -9,18 +9,18 @@ import { getSession } from "@/app/lib/session";
 
 const ITEMS_PER_PAGE = 20;
 
-// Helper para converter string "1,2,3" em array de números [1,2,3]
 const stringToArrayNonEmpty = z.string()
   .transform(val => val ? val.split(',').filter(Boolean).map(x => parseInt(x)) : [])
   .refine(arr => arr.length > 0, {
     message: 'Pelo menos uma categoria deve ser selecionada.',
   });
 
-// --- SCHEMAS ZOD (Sem validação de imagem) ---
+// --- SCHEMAS ZOD ---
 
 const CreateArtigoSchema = z.object({
   created_by: z.string().min(0, { message: "ID da sessão é inválido." }),
   titulo: z.string().min(3, { message: "O título deve ter pelo menos 3 caracteres." }),
+  subtitulo: z.string().optional(), // Adicionado subtitulo opcional
   conteudo: z.string().min(10, { message: "O conteúdo deve ter pelo menos 10 caracteres." }),
   categorias: stringToArrayNonEmpty,
 });
@@ -28,11 +28,11 @@ const CreateArtigoSchema = z.object({
 const UpdateArtigoSchema = z.object({
   id: z.string().min(0, { message: "ID do artigo é inválido." }),
   titulo: z.string().min(3, { message: "O título deve ter pelo menos 3 caracteres." }),
+  subtitulo: z.string().optional(), // Adicionado subtitulo opcional
   conteudo: z.string().min(10, { message: "O conteúdo deve ter pelo menos 10 caracteres." }),
   categorias: stringToArrayNonEmpty,
 });
 
-// Tipagem para o estado do formulário
 export interface FormState {
   message: string;
   errors?: { [key: string]: string[] | undefined };
@@ -56,7 +56,6 @@ export async function getArtigoBySlug(slugInput: string) {
   }
 }
 
-// Removidos parametros session_id e isAdmin
 export async function fetchArtigosByPage(page: number, query: string = ''): Promise<{ 
   artigos: Artigo[]; 
   totalCount: number; 
@@ -66,17 +65,16 @@ export async function fetchArtigosByPage(page: number, query: string = ''): Prom
   const searchQuery = `%${query}%`;
 
   try {
-    // Query simplificada: Traz tudo sem filtrar por criador
     const queryText = `
       SELECT
         artigos.id,
         artigos.titulo,
+        artigos.subtitulo, -- Adicionado subtitulo na seleção
         artigos.slug,
         artigos.conteudo,
         artigos.created_at,
         artigos.updated_at,
         artigos.created_by,
-        -- Thumbnail removido da query ou mantido null se a coluna existir mas não for usada
         COALESCE(ARRAY_AGG(DISTINCT ac.categoria_id), '{}') AS categorias,
         COUNT(*) OVER() AS total_count
       FROM
@@ -108,7 +106,7 @@ export async function fetchArtigosByPage(page: number, query: string = ''): Prom
   }
 }
 
-// --- DELETE (Sem MinIO) ---
+// --- DELETE ---
 
 export async function deleteArtigo(id: number | string) {
   if (!id) {
@@ -119,13 +117,8 @@ export async function deleteArtigo(id: number | string) {
 
   try {
     await client.query('BEGIN');
-
-    // Removida a lógica de deletar do MinIO
-
-    // Deletar do banco (Cascade deve cuidar do artigo_categorias)
     const deleteQuery = 'DELETE FROM artigos WHERE id = $1';
     await client.query(deleteQuery, [id]);
-
     await client.query('COMMIT');
     
     revalidatePath('/admin/artigos');
@@ -140,39 +133,34 @@ export async function deleteArtigo(id: number | string) {
   }
 }
 
-// --- CREATE (Sem MinIO) ---
+// --- CREATE ---
 
 export async function createArtigo(prevState: FormState, formData: FormData): Promise<FormState> {
   const validatedFields = CreateArtigoSchema.safeParse(Object.fromEntries(formData.entries()));
-  console.log(validatedFields);
-  console.log(formData.entries());
+  
   if (!validatedFields.success) {
     return { success: false, message: 'Erro de validação.', errors: validatedFields.error.flatten().fieldErrors };
   }
   
-  // Thumbnail removida da desestruturação
-  const { titulo, conteudo, categorias, created_by } = validatedFields.data;
+  const { titulo, subtitulo, conteudo, categorias, created_by } = validatedFields.data;
   const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
 
-    // Inserir Artigo (Removida coluna thumbnail)
     const insertQuery = `
-      INSERT INTO artigos (titulo, slug, conteudo, created_by, created_at, updated_at) 
-      VALUES ($1, $2, $3, $4, NOW(), NOW()) 
+      INSERT INTO artigos (titulo, subtitulo, slug, conteudo, created_by, created_at, updated_at) 
+      VALUES ($1, $2, $3, $4, $5, NOW(), NOW()) 
       RETURNING id;
     `;
     
-    const result = await client.query(insertQuery, [titulo, slug(titulo), conteudo, created_by]);
+    // Adicionado subtitulo na query de insert
+    const result = await client.query(insertQuery, [titulo, subtitulo || '', slug(titulo), conteudo, created_by]);
     const newArtigoId = result.rows[0].id;
 
-    // Inserir Categorias
     for (const catId of categorias) {
       await client.query('INSERT INTO artigo_categorias (artigo_id, categoria_id) VALUES ($1, $2)', [newArtigoId, catId]);
     }
-
-    // Removido upload MinIO e Update posterior
 
     await client.query('COMMIT');
 
@@ -188,7 +176,7 @@ export async function createArtigo(prevState: FormState, formData: FormData): Pr
   }
 }
 
-// --- UPDATE (Sem MinIO) ---
+// --- UPDATE ---
 
 export async function updateArtigo(prevState: FormState, formData: FormData): Promise<FormState> {
   const validatedFields = UpdateArtigoSchema.safeParse(Object.fromEntries(formData.entries()));
@@ -197,28 +185,24 @@ export async function updateArtigo(prevState: FormState, formData: FormData): Pr
     return { success: false, message: 'Erro de validação.', errors: validatedFields.error.flatten().fieldErrors };
   }
   
-  // Thumbnail removida da desestruturação
-  const { id, titulo, conteudo, categorias } = validatedFields.data;
+  const { id, titulo, subtitulo, conteudo, categorias } = validatedFields.data;
   const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
 
-    // Atualizar dados básicos
     const updateQuery = `
       UPDATE artigos 
-      SET titulo = $1, slug = $2, conteudo = $3, updated_at = NOW()
-      WHERE id = $4;
+      SET titulo = $1, subtitulo = $2, slug = $3, conteudo = $4, updated_at = NOW()
+      WHERE id = $5;
     `;
-    await client.query(updateQuery, [titulo, slug(titulo), conteudo, id]);
+    // Adicionado subtitulo na query de update
+    await client.query(updateQuery, [titulo, subtitulo || '', slug(titulo), conteudo, id]);
 
-    // Sincronizar Categorias
     await client.query('DELETE FROM artigo_categorias WHERE artigo_id = $1', [id]);
     for (const catId of categorias) {
       await client.query('INSERT INTO artigo_categorias (artigo_id, categoria_id) VALUES ($1, $2)', [id, catId]);
     }
-
-    // Removido upload MinIO condicional
 
     await client.query('COMMIT');
 

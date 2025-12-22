@@ -1,0 +1,1 @@
+ALTER TABLE artigos ADD COLUMN subtitulo TEXT;

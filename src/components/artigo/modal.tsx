@@ -71,13 +71,10 @@ export function ArtigoFormModal({ open, onClose, onSuccess, editingArtigo, categ
   // Efeito para inicializar o Quill
   useEffect(() => {
     const initQuill = async () => {
-      // Importa o Quill apenas no cliente
       const { default: Quill } = await import('quill');
 
-      // Verifica se a div do editor existe no DOM
       if (editorRef.current && !quillInstance.current) {
         
-        // Limpa o conteúdo anterior da div para evitar duplicação da toolbar
         editorRef.current.innerHTML = '';
 
         const toolbarOptions = [
@@ -97,16 +94,13 @@ export function ArtigoFormModal({ open, onClose, onSuccess, editingArtigo, categ
 
         quillInstance.current = quill;
 
-        // Define o valor inicial
         const initialValue = isEditMode && editingArtigo?.conteudo ? editingArtigo.conteudo : '';
         
-        // Usamos root.innerHTML para garantir que o HTML seja renderizado corretamente
         if (initialValue) {
             quill.root.innerHTML = initialValue;
         }
         setContent(initialValue);
 
-        // Listener para mudanças
         quill.on('text-change', () => {
           const html = quill.root.innerHTML;
           setContent(html === '<p><br></p>' ? '' : html);
@@ -115,7 +109,6 @@ export function ArtigoFormModal({ open, onClose, onSuccess, editingArtigo, categ
     };
 
     if (open) {
-      // setTimeout garante que o Dialog do Material UI terminou de renderizar a div no DOM
       const timer = setTimeout(() => {
         initQuill();
       }, 100);
@@ -123,7 +116,6 @@ export function ArtigoFormModal({ open, onClose, onSuccess, editingArtigo, categ
       return () => clearTimeout(timer);
     }
 
-    // Cleanup ao fechar
     return () => {
       quillInstance.current = null;
       setContent('');
@@ -137,7 +129,6 @@ export function ArtigoFormModal({ open, onClose, onSuccess, editingArtigo, categ
       PaperProps={{ component: 'form', action: formAction }} 
       maxWidth="lg" 
       fullWidth
-      // keepMounted={false} // Garante que o DOM seja destruído/recriado para o Quill funcionar bem
     >
       <DialogTitle>{isEditMode ? 'Editar Artigo' : 'Criar Novo Artigo'}</DialogTitle>
       <DialogContent>
@@ -154,6 +145,19 @@ export function ArtigoFormModal({ open, onClose, onSuccess, editingArtigo, categ
           defaultValue={isEditMode ? editingArtigo.titulo : ''}
           error={!!state.errors?.titulo}
           helperText={state.errors?.titulo?.[0]}
+          sx={{ mb: 2 }}
+        />
+
+        {/* --- CAMPO SUBTÍTULO ADICIONADO --- */}
+        <TextField
+          margin="dense"
+          name="subtitulo"
+          label="Subtítulo (Opcional)"
+          type="text"
+          fullWidth
+          defaultValue={isEditMode ? editingArtigo.subtitulo : ''}
+          error={!!state.errors?.subtitulo}
+          helperText={state.errors?.subtitulo?.[0]}
           sx={{ mb: 2 }}
         />
 
@@ -186,13 +190,11 @@ export function ArtigoFormModal({ open, onClose, onSuccess, editingArtigo, categ
             Conteúdo
         </Typography>
         
-        {/* Box Container para o Quill */}
         <Box sx={{ 
             height: '400px', 
             mb: 4, 
             display: 'flex', 
             flexDirection: 'column',
-            // Estilização profunda para garantir que o Quill apareça corretamente
             '& .ql-toolbar': { 
                 borderTopLeftRadius: '4px', 
                 borderTopRightRadius: '4px',
@@ -211,7 +213,6 @@ export function ArtigoFormModal({ open, onClose, onSuccess, editingArtigo, categ
                 minHeight: '200px'
             }
         }}>
-            {/* A div ref precisa estar limpa inicialmente */}
             <div ref={editorRef} style={{ height: '100%', backgroundColor: 'white' }} />
         </Box>
 
