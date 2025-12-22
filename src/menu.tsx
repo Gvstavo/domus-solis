@@ -80,7 +80,7 @@ const Menu = () => {
                 </Link>
 
                 {user && (
-                  <Link href="/admin" className="text-red-600 hover:text-red-800 font-bold transition-colors duration-200">
+                  <Link href="/admin/usuarios" target="_blank" rel="noopener noreferrer" passHref className="text-red-600 hover:text-red-800 font-bold transition-colors duration-200">
                     Administração
                   </Link>
                 )}
