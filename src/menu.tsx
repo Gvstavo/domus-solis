@@ -72,7 +72,7 @@ const Menu = () => {
                 <Link href="/" className="text-gray-600 hover:text-[#ebd127] font-medium transition-colors duration-200">
                   Home
                 </Link>
-                <Link href="#" className="text-gray-600 hover:text-[#ebd127] font-medium transition-colors duration-200">
+                <Link href="/artigos" className="text-gray-600 hover:text-[#ebd127] font-medium transition-colors duration-200">
                   Artigos
                 </Link>
                 <Link href="/sobre" className="text-gray-600 hover:text-[#ebd127] font-medium transition-colors duration-200">
