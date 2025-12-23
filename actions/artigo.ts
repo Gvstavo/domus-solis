@@ -43,13 +43,28 @@ export interface FormState {
 
 export async function getArtigoBySlug(slugInput: string) {
   try {
-    const result = await pool.query(`
-      SELECT a.*, u.nome as autor_nome 
+    // Query atualizada para buscar o autor E as categorias (agrupadas em um array JSON)
+    const query = `
+      SELECT 
+        a.*, 
+        u.nome as autor_nome,
+        COALESCE(
+          json_agg(json_build_object('id', c.id, 'nome', c.nome)) 
+          FILTER (WHERE c.id IS NOT NULL), 
+          '[]'
+        ) as categorias_list
       FROM artigos a
       LEFT JOIN usuarios u ON a.created_by = u.id
+      LEFT JOIN artigo_categorias ac ON a.id = ac.artigo_id
+      LEFT JOIN categorias c ON ac.categoria_id = c.id
       WHERE a.slug = $1
-    `, [slugInput]);
-    return result.rows[0] as Artigo || null;
+      GROUP BY a.id, u.nome
+    `;
+    
+    const result = await pool.query(query, [slugInput]);
+    
+    // É necessário fazer o cast ou garantir que o tipo no front receba categorias_list
+    return result.rows[0] as (Artigo & { autor_nome: string, categorias_list: Categoria[] }) || null;
   } catch (error) {
     console.error('Database Error:', error);
     throw new Error('Failed to fetch artigo by slug.');
