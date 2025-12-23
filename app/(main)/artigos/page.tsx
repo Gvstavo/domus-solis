@@ -31,7 +31,7 @@ export default function ArtigosPage({
             Artigos & Novidades
           </Typography>
           <Typography variant="h6" color="text.secondary" fontWeight="normal">
-            Explore nosso conteúdo exclusivo sobre arquitetura, design e muito mais.
+            Explore nosso conteúdo
           </Typography>
         </Container>
       </Box>
