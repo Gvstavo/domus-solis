@@ -67,6 +67,7 @@ const Footer = () => {
             </Typography>
             <Stack spacing={1}>
               <MuiLink href="/" sx={linkStyle}>Home</MuiLink>
+              <MuiLink href="/artigos" sx={linkStyle}>Artigos</MuiLink>
               <MuiLink href="/sobre" sx={linkStyle}>Sobre</MuiLink>
             </Stack>
           </Grid>
@@ -77,10 +78,10 @@ const Footer = () => {
               Categorias
             </Typography>
             <Stack spacing={1}>
-              <MuiLink href="/categoria/astrologia-natal" sx={linkStyle}>Astrologia Natal</MuiLink>
-              <MuiLink href="/categoria/metafisica" sx={linkStyle}>Metafísica Astrológica</MuiLink>
-              <MuiLink href="/categoria/fenomenologia" sx={linkStyle}>Fenomenologia</MuiLink>
-              <MuiLink href="/categoria/simbolismos" sx={linkStyle}>Simbolismos</MuiLink>
+              <MuiLink href="#" sx={linkStyle}>Astrologia Natal</MuiLink>
+              <MuiLink href="#" sx={linkStyle}>Metafísica Astrológica</MuiLink>
+              <MuiLink href="#" sx={linkStyle}>Fenomenologia</MuiLink>
+              <MuiLink href="#" sx={linkStyle}>Simbolismos</MuiLink>
             </Stack>
           </Grid>
         </Grid>
