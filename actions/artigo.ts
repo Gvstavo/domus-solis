@@ -40,7 +40,22 @@ export interface FormState {
 }
 
 // --- LEITURA (GET) ---
-
+export async function fetchRecentArticles() {
+  try {
+    const query = `
+      SELECT id, titulo, subtitulo, slug, created_at
+      FROM artigos
+      ORDER BY created_at DESC
+      LIMIT 4
+    `;
+    
+    const result = await pool.query(query);
+    return result.rows as Artigo[];
+  } catch (error) {
+    console.error('Erro ao buscar artigos recentes:', error);
+    return [];
+  }
+}
 export async function getArtigoBySlug(slugInput: string) {
   try {
     // Query atualizada para buscar o autor E as categorias (agrupadas em um array JSON)
