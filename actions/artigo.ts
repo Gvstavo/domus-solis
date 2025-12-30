@@ -152,6 +152,8 @@ export async function deleteArtigo(id: number | string) {
     await client.query('COMMIT');
     
     revalidatePath('/admin/artigos');
+    revalidatePath('/artigos');
+    revalidatePath('/');
     return { success: true, message: 'Artigo deletado com sucesso.' };
 
   } catch (error) {
@@ -195,6 +197,8 @@ export async function createArtigo(prevState: FormState, formData: FormData): Pr
     await client.query('COMMIT');
 
     revalidatePath('/admin/artigos');
+    revalidatePath('/artigos');
+    revalidatePath('/');
     return { success: true, message: 'Artigo criado com sucesso!' };
 
   } catch (error) {
@@ -237,6 +241,8 @@ export async function updateArtigo(prevState: FormState, formData: FormData): Pr
     await client.query('COMMIT');
 
     revalidatePath('/admin/artigos');
+    revalidatePath('/');
+    revalidatePath('/artigos');
     return { success: true, message: 'Artigo atualizado com sucesso!' };
 
   } catch (error) {

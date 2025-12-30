@@ -5,7 +5,7 @@ import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined
 import { fetchRecentArticles } from "@/actions/artigo.ts"; // Import da action criada
 
 import { Playfair_Display, Inter } from 'next/font/google';
-
+export const dynamic = 'force-dynamic';
 const serifFont = Playfair_Display({ subsets: ['latin'], weight: ['700'] });
 const sansFont = Inter({ subsets: ['latin'], weight: ['300', '400', '500'] });
 

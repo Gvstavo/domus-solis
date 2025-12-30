@@ -5,7 +5,7 @@ export const metadata = {
   title: 'Artigos | Domus Solis',
   description: 'Leia nossos últimos artigos e novidades.',
 };
-
+export const dynamic = 'force-dynamic';
 export default function ArtigosPage({
   searchParams,
 }: {
